@@ -1,6 +1,5 @@
 {
   "name": "contenedor",
-  "version": "0.0.1",
   "description": "Contenedor is a POC application to CI/CD deploy an simple application with Docker and GitLab.",
   "author": "Mathieu Héliot <mathieu.heliot@gmail.com>",
   "main": "src/index.js",
