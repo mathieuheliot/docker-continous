@@ -4,10 +4,13 @@ services:
 
 stages:
   - build
+  - release
   - deploy
 
 variables:
-  CONTAINER_TEST_IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
+  CONTAINER_LATEST_IMAGE: $CI_REGISTRY_IMAGE:latest
+  CONTAINER_TEST_IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA  
+  CONTAINER_RELEASE_IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_TAG
 
 before_script:
   - docker login registry.gitlab.com -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD
@@ -17,6 +20,8 @@ build:
   script:
     - docker build -t $CONTAINER_TEST_IMAGE .
     - docker push $CONTAINER_TEST_IMAGE
+  except:
+    - tags
 
 staging:
   stage: deploy
@@ -24,22 +29,43 @@ staging:
     GIT_STRATEGY: none
   script:
     - docker pull $CONTAINER_TEST_IMAGE
-    # - docker run $CONTAINER_TEST_IMAGE -p 8000:8080 --name $CI_PROJECT_NAME
   environment:
     name: production
     url: https://test.contenedor.mathieuheliot.com
   only:
     - master
 
-production:
-  stage: deploy
+release:
+  stage: release
   variables:
-    CONTAINER_RELEASE_IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_TAG
     GIT_STRATEGY: none
   script:
     - docker pull $CONTAINER_TEST_IMAGE
     - docker tag $CONTAINER_TEST_IMAGE $CONTAINER_RELEASE_IMAGE
     - docker push $CONTAINER_RELEASE_IMAGE
+  only:
+    - tag
+
+production:
+  stage: deploy
+  variables:
+    GIT_STRATEGY: none
+
+  ##
+  ## Authenticate to remote server
+  ## https://gitlab.com/gitlab-examples/ssh-private-key/-/blob/master/.gitlab-ci.yml
+  ##
+  before_script:
+    - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client git -y )'
+    - eval $(ssh-agent -s)
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - ssh-keyscan $SERVER_HOST >> ~/.ssh/known_hosts
+    - chmod 644 ~/.ssh/known_hosts
+
+  script:
+    - ssh "$SERVER_USER@$SERVER_HOST" -p "$SERVER_PORT" "docker run $CONTAINER_RELEASE_IMAGE -p 8000:8080 --name $CI_PROJECT_NAME"
   environment:
     name: production
     url: https://contenedor.mathieuheliot.com
