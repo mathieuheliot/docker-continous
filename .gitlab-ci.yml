@@ -1,0 +1,47 @@
+image: docker:19.03.6
+services:
+  - docker:19.03.6-dind
+
+stages:
+  - build
+  - deploy
+
+variables:
+  CONTAINER_TEST_IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
+
+before_script:
+  - docker login registry.gitlab.com -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD
+
+build:
+  stage: build
+  script:
+    - docker build -t $CONTAINER_TEST_IMAGE .
+    - docker push $CONTAINER_TEST_IMAGE
+
+staging:
+  stage: deploy
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - docker pull $CONTAINER_TEST_IMAGE
+    # - docker run $CONTAINER_TEST_IMAGE -p 8000:8080 --name $CI_PROJECT_NAME
+  environment:
+    name: production
+    url: https://test.contenedor.mathieuheliot.com
+  only:
+    - master
+
+production:
+  stage: deploy
+  variables:
+    CONTAINER_RELEASE_IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_TAG
+    GIT_STRATEGY: none
+  script:
+    - docker pull $CONTAINER_TEST_IMAGE
+    - docker tag $CONTAINER_TEST_IMAGE $CONTAINER_RELEASE_IMAGE
+    - docker push $CONTAINER_RELEASE_IMAGE
+  environment:
+    name: production
+    url: https://contenedor.mathieuheliot.com
+  only:
+    - tags
