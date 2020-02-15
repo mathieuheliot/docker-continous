@@ -65,7 +65,7 @@ production:
     - chmod 644 ~/.ssh/known_hosts
 
   script:
-    - ssh "$SERVER_USER@$SERVER_HOST" -p "$SERVER_PORT" "docker run $CONTAINER_RELEASE_IMAGE -p 8000:8080 --name $CI_PROJECT_NAME"
+    - ssh "$SERVER_USER@$SERVER_HOST" -p "$SERVER_PORT" "docker pull $CONTAINER_RELEASE_IMAGE && docker run $CONTAINER_RELEASE_IMAGE -p 8000:8080 --name $CI_PROJECT_NAME"
   environment:
     name: production
     url: https://contenedor.mathieuheliot.com
