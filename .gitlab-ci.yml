@@ -37,7 +37,7 @@ test_ssh:
     - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
   script:
     - echo "Test SSH"
-    - ssh "$SERVER_APP_USER@$SERVER_APP_IP_ADDRESS" -p "$SERVER_APP_PORT" "ls -la" -v
+    - ssh "$SERVER_USER@$SERVER_HOST" -p "$SERVER_PORT" "ls -la" -v
     - echo "SSH OK"
   except:
     - tags
