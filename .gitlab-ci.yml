@@ -38,22 +38,24 @@ release:
 
 staging:
   stage: deploy
+  variables:
+    GIT_STRATEGY: none
 
   ##
   ## Authenticate to remote server
   ## https://gitlab.com/gitlab-examples/ssh-private-key/-/blob/master/.gitlab-ci.yml
   ##
-  before_script:
-    - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client git -y )'
-    - eval $(ssh-agent -s)
-    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
-    - mkdir -p ~/.ssh
-    - chmod 700 ~/.ssh
+  ## before_script:
+  ##   - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client git -y )'
+  ##   - eval $(ssh-agent -s)
+  ##   - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+  ##   - mkdir -p ~/.ssh
+  ##   - chmod 700 ~/.ssh
     ## - ssh-keyscan $SERVER_HOST >> ~/.ssh/known_hosts
     ## - chmod 644 ~/.ssh/known_hosts
 
   script:
-    - ssh "$SERVER_USER@$SERVER_HOST" -p "$SERVER_PORT" "docker login registry.gitlab.com -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD && docker pull $CONTAINER_RELEASE_IMAGE && docker run $CONTAINER_RELEASE_IMAGE -p 8000:8080 --name $CI_PROJECT_NAME"
+    - ssh -i "$SSH_PRIVATE_KEY" "$SERVER_USER@$SERVER_HOST" -p "$SERVER_PORT" "docker login registry.gitlab.com -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD && docker pull $CONTAINER_RELEASE_IMAGE && docker run $CONTAINER_RELEASE_IMAGE -p 8000:8080 --name $CI_PROJECT_NAME"
   environment:
     name: production
     url: https://test.contenedor.mathieuheliot.com
@@ -61,7 +63,9 @@ staging:
     - master
 
 production:
-  stage: deploy
+  stage: deploy  
+  variables:
+    GIT_STRATEGY: none
   before_script:
     - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client git -y )'
     - eval $(ssh-agent -s)
