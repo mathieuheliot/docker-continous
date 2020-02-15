@@ -5,9 +5,9 @@ stages:
   - deploy
 
 variables:
-  CONTAINER_LATEST_IMAGE: $CI_REGISTRY_IMAGE:latest
-  CONTAINER_TEST_IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA  
-  CONTAINER_RELEASE_IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_TAG
+  CONTAINER_LATEST_IMAGE: $CI_PROJECT_NAME:latest
+  CONTAINER_TEST_IMAGE: $CI_PROJECT_NAME:$CI_COMMIT_SHA  
+  CONTAINER_RELEASE_IMAGE: $CI_PROJECT_NAME:$CI_COMMIT_TAG
   DOCKER_VERSION: 19.03.6
 
 build:
@@ -34,7 +34,7 @@ test_ssh:
     - eval $(ssh-agent -s)
     - ssh-add <(echo "$SSH_PRIVATE_KEY")
     - mkdir -p ~/.ssh
-    - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+    ## - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
   script:
     - echo "Test SSH"
     - ssh "$SERVER_USER@$SERVER_HOST" -p "$SERVER_PORT" "docker -v" -v
@@ -63,11 +63,11 @@ staging:
     - eval $(ssh-agent -s)
     - ssh-add <(echo "$SSH_PRIVATE_KEY")
     - mkdir -p ~/.ssh
-    - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+    ## - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
   script:
     - ssh "$SERVER_USER@$SERVER_HOST" -p "$SERVER_PORT" "docker login registry.gitlab.com -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD"
     - ssh "$SERVER_USER@$SERVER_HOST" -p "$SERVER_PORT" "docker pull $CONTAINER_TEST_IMAGE"
-    - ssh "$SERVER_USER@$SERVER_HOST" -p "$SERVER_PORT" "docker run $CONTAINER_TEST_IMAGE -p 8000:8080 --name $CI_PROJECT_NAME"
+    - ssh "$SERVER_USER@$SERVER_HOST" -p "$SERVER_PORT" "docker run -p 8000:8080 --name $CI_PROJECT_NAME $CONTAINER_TEST_IMAGE"
   environment:
     name: test
     url: https://test.contenedor.mathieuheliot.com
@@ -77,17 +77,15 @@ staging:
 production:
   stage: deploy  
   before_script:
-    - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client git -y )'
+    - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
     - eval $(ssh-agent -s)
-    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+    - ssh-add <(echo "$SSH_PRIVATE_KEY")
     - mkdir -p ~/.ssh
-    - chmod 700 ~/.ssh
-    - ssh-keyscan $SERVER_HOST >> ~/.ssh/known_hosts
-    - chmod 644 ~/.ssh/known_hosts
+    ## - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
   script:
     - ssh "$SERVER_USER@$SERVER_HOST" -p "$SERVER_PORT" "docker login registry.gitlab.com -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD"
     - ssh "$SERVER_USER@$SERVER_HOST" -p "$SERVER_PORT" "docker pull $CONTAINER_RELEASE_IMAGE"
-    - ssh "$SERVER_USER@$SERVER_HOST" -p "$SERVER_PORT" "docker run $CONTAINER_RELEASE_IMAGE -p 8000:8080 --name $CI_PROJECT_NAME"
+    - ssh "$SERVER_USER@$SERVER_HOST" -p "$SERVER_PORT" "docker run -p 8000:8080 --name $CI_PROJECT_NAME $CONTAINER_RELEASE_IMAGE"
   environment:
     name: production
     url: https://contenedor.mathieuheliot.com
