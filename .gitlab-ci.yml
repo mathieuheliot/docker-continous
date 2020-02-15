@@ -64,9 +64,10 @@ staging:
     - ssh-add <(echo "$SSH_PRIVATE_KEY")
     - mkdir -p ~/.ssh
     - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
-
   script:
-    - ssh "$SERVER_USER@$SERVER_HOST" -p "$SERVER_PORT" "docker login registry.gitlab.com -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD && docker pull $CONTAINER_RELEASE_IMAGE && docker run $CONTAINER_RELEASE_IMAGE -p 8000:8080 --name $CI_PROJECT_NAME"
+    - ssh "$SERVER_USER@$SERVER_HOST" -p "$SERVER_PORT" "docker login registry.gitlab.com -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD"
+    - ssh "$SERVER_USER@$SERVER_HOST" -p "$SERVER_PORT" "docker pull $CONTAINER_RELEASE_IMAGE"
+    - ssh "$SERVER_USER@$SERVER_HOST" -p "$SERVER_PORT" "docker run $CONTAINER_RELEASE_IMAGE -p 8000:8080 --name $CI_PROJECT_NAME"
   environment:
     name: production
     url: https://test.contenedor.mathieuheliot.com
