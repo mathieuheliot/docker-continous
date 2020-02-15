@@ -67,7 +67,7 @@ staging:
   script:
     - ssh "$SERVER_USER@$SERVER_HOST" -p "$SERVER_PORT" "docker login registry.gitlab.com -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD"
     - ssh "$SERVER_USER@$SERVER_HOST" -p "$SERVER_PORT" "docker pull $CONTAINER_TEST_IMAGE"
-    - ssh "$SERVER_USER@$SERVER_HOST" -p "$SERVER_PORT" "docker run -p 8000:8080 --name $CI_PROJECT_NAME $CONTAINER_TEST_IMAGE"
+    - ssh "$SERVER_USER@$SERVER_HOST" -p "$SERVER_PORT" "docker run -p 8000:8080 -d --name $CI_PROJECT_NAME $CONTAINER_TEST_IMAGE"
   environment:
     name: test
     url: https://test.contenedor.mathieuheliot.com
@@ -85,7 +85,7 @@ production:
   script:
     - ssh "$SERVER_USER@$SERVER_HOST" -p "$SERVER_PORT" "docker login registry.gitlab.com -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD"
     - ssh "$SERVER_USER@$SERVER_HOST" -p "$SERVER_PORT" "docker pull $CONTAINER_RELEASE_IMAGE"
-    - ssh "$SERVER_USER@$SERVER_HOST" -p "$SERVER_PORT" "docker run -p 8000:8080 --name $CI_PROJECT_NAME $CONTAINER_RELEASE_IMAGE"
+    - ssh "$SERVER_USER@$SERVER_HOST" -p "$SERVER_PORT" "docker run -p 8000:8080 -d --name $CI_PROJECT_NAME $CONTAINER_RELEASE_IMAGE"
   environment:
     name: production
     url: https://contenedor.mathieuheliot.com
