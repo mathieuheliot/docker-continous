@@ -1,5 +1,6 @@
 stages:
   - build
+  - test
   - release
   - deploy
 
@@ -22,6 +23,25 @@ build:
   except:
     - tags
 
+test_ssh:
+  stage: test
+  ##
+  ## Authenticate to remote server
+  ## https://gitlab.com/gitlab-examples/ssh-private-key/-/blob/master/.gitlab-ci.yml
+  ##
+  before_script:
+    - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
+    - eval $(ssh-agent -s)
+    - ssh-add <(echo "$SSH_PRIVATE_KEY")
+    - mkdir -p ~/.ssh
+    - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+  script:
+    - echo "Test SSH"
+    - ssh "$SERVER_APP_USER@$SERVER_APP_IP_ADDRESS" -p "$SERVER_APP_PORT" "ls -la" -v
+    - echo "SSH OK"
+  except:
+    - tags
+
 release:
   stage: release
   image: docker:$DOCKER_VERSION
@@ -38,24 +58,15 @@ release:
 
 staging:
   stage: deploy
-  variables:
-    GIT_STRATEGY: none
-
-  ##
-  ## Authenticate to remote server
-  ## https://gitlab.com/gitlab-examples/ssh-private-key/-/blob/master/.gitlab-ci.yml
-  ##
-  ## before_script:
-  ##   - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client git -y )'
-  ##   - eval $(ssh-agent -s)
-  ##   - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
-  ##   - mkdir -p ~/.ssh
-  ##   - chmod 700 ~/.ssh
-    ## - ssh-keyscan $SERVER_HOST >> ~/.ssh/known_hosts
-    ## - chmod 644 ~/.ssh/known_hosts
+  before_script:
+    - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
+    - eval $(ssh-agent -s)
+    - ssh-add <(echo "$SSH_PRIVATE_KEY")
+    - mkdir -p ~/.ssh
+    - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
 
   script:
-    - ssh -i "$SSH_PRIVATE_KEY" "$SERVER_USER@$SERVER_HOST" -p "$SERVER_PORT" "docker login registry.gitlab.com -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD && docker pull $CONTAINER_RELEASE_IMAGE && docker run $CONTAINER_RELEASE_IMAGE -p 8000:8080 --name $CI_PROJECT_NAME"
+    - ssh "$SERVER_USER@$SERVER_HOST" -p "$SERVER_PORT" "docker login registry.gitlab.com -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD && docker pull $CONTAINER_RELEASE_IMAGE && docker run $CONTAINER_RELEASE_IMAGE -p 8000:8080 --name $CI_PROJECT_NAME"
   environment:
     name: production
     url: https://test.contenedor.mathieuheliot.com
@@ -64,8 +75,6 @@ staging:
 
 production:
   stage: deploy  
-  variables:
-    GIT_STRATEGY: none
   before_script:
     - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client git -y )'
     - eval $(ssh-agent -s)
