@@ -12,10 +12,10 @@ variables:
 
 .deploy: &deploy  
   - echo "Deploying $IMAGE"
-  - ssh "$SERVER_USER@$SERVER_HOST" -p "$SERVER_PORT" "docker stop $IMAGE_LATEST || true && docker rm $IMAGE_LATEST || true"
+  - ssh "$SERVER_USER@$SERVER_HOST" -p "$SERVER_PORT" "docker stop $CI_PROJECT_NAME || true && docker rm $CI_PROJECT_NAME || true"
   - ssh "$SERVER_USER@$SERVER_HOST" -p "$SERVER_PORT" "docker login registry.gitlab.com -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD"
-  - ssh "$SERVER_USER@$SERVER_HOST" -p "$SERVER_PORT" "docker pull $IMAGE_LATEST"
-  - ssh "$SERVER_USER@$SERVER_HOST" -p "$SERVER_PORT" "docker run -p $EXPOSE:8080 -d --name $CI_PROJECT_NAME $IMAGE_LATEST"
+  - ssh "$SERVER_USER@$SERVER_HOST" -p "$SERVER_PORT" "docker pull $IMAGE"
+  - ssh "$SERVER_USER@$SERVER_HOST" -p "$SERVER_PORT" "docker run -p $EXPOSE:8080 -d --name $CI_PROJECT_NAME $IMAGE"
 
 .login: &login
  - docker login registry.gitlab.com -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD
@@ -87,7 +87,7 @@ Deploy to staging:
   variables:
     GIT_STRATEGY: none
     EXPOSE: $APP_STAGE_EXPOSE
-    IMAGE: $IMAGE_LATEST
+    IMAGE: "$CI_REGISTRY_IMAGE:latest"
     SERVER_USER: $SERVER_STAGE_USER
     SERVER_HOST: $SERVER_STAGE_HOST
     SERVER_PORT: $SERVER_STAGE_PORT
