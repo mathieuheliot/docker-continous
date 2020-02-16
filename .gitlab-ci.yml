@@ -5,89 +5,114 @@ stages:
   - deploy
 
 variables:
-  CONTAINER_LATEST_IMAGE: $CI_REGISTRY_IMAGE:latest
-  CONTAINER_TEST_IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA  
-  CONTAINER_RELEASE_IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_TAG
   DOCKER_VERSION: 19.03.6
+  IMAGE_LATEST: $CI_REGISTRY_IMAGE:latest
+  IMAGE_TEST: $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA  
+  IMAGE_RELEASE: $CI_REGISTRY_IMAGE:$CI_COMMIT_TAG
 
-build:
+.deploy: &deploy  
+  - ssh "$SERVER_USER@$SERVER_HOST" -p "$SERVER_PORT" "docker stop $IMAGE || true && docker rm $IMAGE || true"
+  - ssh "$SERVER_USER@$SERVER_HOST" -p "$SERVER_PORT" "docker login registry.gitlab.com -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD"
+  - ssh "$SERVER_USER@$SERVER_HOST" -p "$SERVER_PORT" "docker pull $IMAGE"
+  - ssh "$SERVER_USER@$SERVER_HOST" -p "$SERVER_PORT" "docker run -p $EXPOSE:8080 -d --name $CI_PROJECT_NAME $IMAGE"
+
+.login: &login
+ - docker login registry.gitlab.com -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD
+
+# The "ssh" job will start an ssh-agent 
+# and load a private key from a gitlab secret variable
+# This is needed to work on remote server
+.ssh: &ssh
+    ##
+    ## Authenticate to remote server
+    ## https://gitlab.com/gitlab-examples/ssh-private-key/-/blob/master/.gitlab-ci.yml
+    ##
+    - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
+    - eval $(ssh-agent -s)
+    - ssh-add <(echo "$SSH_PRIVATE_KEY")
+    - mkdir -p ~/.ssh
+    - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+
+Build:
   stage: build
   image: docker:$DOCKER_VERSION
   services:
-    - docker:$DOCKER_VERSION-dind
-  before_script:
-    - docker login registry.gitlab.com -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD
-  script:
-    - docker build -t $CONTAINER_TEST_IMAGE .
-    - docker push $CONTAINER_TEST_IMAGE
+    - docker:$DOCKER_VERSION-dind    
   except:
     - tags
+  before_script: *login
+  script:
+    ##
+    ## This will make sure the GitLab runner has the latest image and can leverage layer caching in order to speed up docker builds
+    ## https://docs.gitlab.com/ee/ci/docker/using_docker_build.html
+    ##
+    - docker pull $IMAGE_LATEST || true
+    - docker build --cache-from $IMAGE_LATEST . --tag $IMAGE_TEST  --tag $IMAGE_LATEST 
+    - docker push $IMAGE_TEST
+    - docker push $IMAGE_LATEST
 
-test_ssh:
+Test SSH:
   stage: test
-  ##
-  ## Authenticate to remote server
-  ## https://gitlab.com/gitlab-examples/ssh-private-key/-/blob/master/.gitlab-ci.yml
-  ##
-  before_script:
-    - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
-    - eval $(ssh-agent -s)
-    - ssh-add <(echo "$SSH_PRIVATE_KEY")
-    - mkdir -p ~/.ssh
-    - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+  variables:
+    ## We do not need the source code here.
+    GIT_STRATEGY: none    
+    SSH_PRIVATE_KEY: $SERVER_STAGE_KEY
+  except:
+    - tags
+  before_script: *ssh
   script:
     - echo "Test SSH"
-    - ssh "$SERVER_USER@$SERVER_HOST" -p "$SERVER_PORT" "docker -v" -v
+    - ssh "$SERVER_STAGE_USER@$SERVER_STAGE_HOST" -p "$SERVER_STAGE_PORT" "docker -v" -v
     - echo "SSH OK"
-  except:
-    - tags
 
-release:
+Release:
   stage: release
   image: docker:$DOCKER_VERSION
   services:
-    - docker:$DOCKER_VERSION-dind
-  before_script:
-    - docker login registry.gitlab.com -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD
-  script:
-    - docker pull $CONTAINER_TEST_IMAGE
-    - docker tag $CONTAINER_TEST_IMAGE $CONTAINER_RELEASE_IMAGE
-    - docker push $CONTAINER_RELEASE_IMAGE
+    - docker:$DOCKER_VERSION-dind    
+  variables:
+    ## Again, we do not need the source code here. Just playing with Docker.
+    GIT_STRATEGY: none    
   only:
     - tags
-
-staging:
-  stage: deploy
-  before_script:
-    - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
-    - eval $(ssh-agent -s)
-    - ssh-add <(echo "$SSH_PRIVATE_KEY")
-    - mkdir -p ~/.ssh
-    - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+  before_script: *login
   script:
-    - ssh "$SERVER_USER@$SERVER_HOST" -p "$SERVER_PORT" "docker login registry.gitlab.com -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD"
-    - ssh "$SERVER_USER@$SERVER_HOST" -p "$SERVER_PORT" "docker pull $CONTAINER_TEST_IMAGE"
-    - ssh "$SERVER_USER@$SERVER_HOST" -p "$SERVER_PORT" "docker run -p 8000:8080 -d --name $CI_PROJECT_NAME $CONTAINER_TEST_IMAGE"
-  environment:
-    name: test
-    url: https://test.contenedor.mathieuheliot.com
+    - docker pull $IMAGE_TEST
+    - docker tag $IMAGE_TEST $IMAGE_RELEASE
+    - docker push $IMAGE_RELEASE
+
+Deploy to staging:
+  stage: deploy
+  variables:
+    GIT_STRATEGY: none
+    EXPOSE: $APP_STAGE_EXPOSE
+    IMAGE: $IMAGE_LATEST
+    SERVER_USER: $SERVER_STAGE_USER
+    SERVER_HOST: $SERVER_STAGE_HOST
+    SERVER_PORT: $SERVER_STAGE_PORT
+    SSH_PRIVATE_KEY: $SERVER_STAGE_KEY
   only:
     - master
+  environment:
+    name: stage
+    url: https://test.contenedor.mathieuheliot.com
+  before_script: *ssh
+  script: *deploy
 
-production:
+Deploy to production:
   stage: deploy  
-  before_script:
-    - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
-    - eval $(ssh-agent -s)
-    - ssh-add <(echo "$SSH_PRIVATE_KEY")
-    - mkdir -p ~/.ssh
-    ## - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
-  script:
-    - ssh "$SERVER_USER@$SERVER_HOST" -p "$SERVER_PORT" "docker login registry.gitlab.com -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD"
-    - ssh "$SERVER_USER@$SERVER_HOST" -p "$SERVER_PORT" "docker pull $CONTAINER_RELEASE_IMAGE"
-    - ssh "$SERVER_USER@$SERVER_HOST" -p "$SERVER_PORT" "docker run -p 8000:8080 -d --name $CI_PROJECT_NAME $CONTAINER_RELEASE_IMAGE"
+  variables:
+    GIT_STRATEGY: none
+    EXPOSE: $APP_PROD_EXPOSE
+    IMAGE: $IMAGE_RELEASE
+    SERVER_USER: $SERVER_PROD_USER
+    SERVER_HOST: $SERVER_PROD_HOST
+    SERVER_PORT: $SERVER_PROD_PORT
+    SSH_PRIVATE_KEY: $SERVER_PROD_KEY
+  only:
+    - tags
   environment:
     name: production
     url: https://contenedor.mathieuheliot.com
-  only:
-    - tags
+  before_script: *ssh
+  script: *deploy
