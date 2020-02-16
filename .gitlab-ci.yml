@@ -11,6 +11,7 @@ variables:
   IMAGE_RELEASE: $CI_REGISTRY_IMAGE:$CI_COMMIT_TAG
 
 .deploy: &deploy  
+  - echo "Deploying $IMAGE"
   - ssh "$SERVER_USER@$SERVER_HOST" -p "$SERVER_PORT" "docker stop $IMAGE || true && docker rm $IMAGE || true"
   - ssh "$SERVER_USER@$SERVER_HOST" -p "$SERVER_PORT" "docker login registry.gitlab.com -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD"
   - ssh "$SERVER_USER@$SERVER_HOST" -p "$SERVER_PORT" "docker pull $IMAGE"
@@ -86,7 +87,7 @@ Deploy to staging:
   variables:
     GIT_STRATEGY: none
     EXPOSE: $APP_STAGE_EXPOSE
-    IMAGE: $IMAGE_TEST
+    IMAGE: $IMAGE_LATEST
     SERVER_USER: $SERVER_STAGE_USER
     SERVER_HOST: $SERVER_STAGE_HOST
     SERVER_PORT: $SERVER_STAGE_PORT
