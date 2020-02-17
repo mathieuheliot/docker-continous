@@ -1,4 +1,10 @@
-# Docker Continous
+<h1 align="center">Docker Continous</h1>
+<h3 align="center">Continous deployment with Docker and GitLab CI/CD</h3>
+
+<p align="center">
+  <img src="https://gitlab.com/mathieuheliot/docker-continous/badges/master/pipeline.svg?style=flat-square" alt="Build Status" />
+</p>
+
 Docker Continous is a sample application to illustrate how to continous integrate and deploy an application with Docker and GitLab CI/CD.
 This example supports multiple environment (staging and production).
 Check it out at :
