@@ -1,6 +1,6 @@
 {
-  "name": "contenedor",
-  "description": "Contenedor is a POC application to CI/CD deploy an simple application with Docker and GitLab.",
+  "name": "docker-continous",
+  "description": "Docker Continous is a sample application to illustrate how to continous integrate and deploy an application with Docker and GitLab CI/CD.",
   "author": "Mathieu Héliot <mathieu.heliot@gmail.com>",
   "main": "src/index.js",
   "scripts": {

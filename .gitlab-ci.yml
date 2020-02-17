@@ -93,7 +93,7 @@ Deploy to staging:
     - master
   environment:
     name: stage
-    url: https://test.contenedor.mathieuheliot.com
+    url: https://test.lab.mathieuheliot.com/docker-continous/
   before_script: *ssh
   script: *deploy
 
@@ -111,6 +111,6 @@ Deploy to production:
     - tags
   environment:
     name: production
-    url: https://contenedor.mathieuheliot.com
+    url: https://lab.mathieuheliot.com/docker-continous/
   before_script: *ssh
   script: *deploy

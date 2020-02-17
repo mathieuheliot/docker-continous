@@ -1,5 +1,5 @@
-# Containers
-Contenedor is a POC application to CI/CD deploy an simple application with Docker and GitLab.
+# Docker Continous
+Docker Continous is a sample application to illustrate how to continous integrate and deploy an application with Docker and GitLab CI/CD.
 
 ## Installation
 - npm install
@@ -7,7 +7,7 @@ Contenedor is a POC application to CI/CD deploy an simple application with Docke
 ## Usage
 - npm run start
 
-## Déploiement
-- docker build -t contenedor/0.0.1 .
-- docker run -p <PORT>:8080 -d --name contenedor contenedor/0.0.1
+## Deploment
+- docker build -t docker-continous:latest .
+- docker run -p <PORT>:8080 -d --name docker-continous docker-continous:latest
 - docker rm --force ap
